@@ -15,11 +15,11 @@
   "observability": { "enabled": true },
   "vars": {
     // "1" permite envíos reales al Ayuntamiento. Con "0" solo funciona el modo prueba.
-    "ENVIO_REAL": "0",
-    // Clave pública de Turnstile. La de abajo es la clave de PRUEBA oficial de Cloudflare (siempre pasa).
-    "TURNSTILE_SITEKEY": "1x00000000000000000000AA",
+    "ENVIO_REAL": "1",
+    // Clave pública (site key) del widget de Turnstile. Para desarrollo local se puede usar la de prueba: 1x00000000000000000000AA
+    "TURNSTILE_SITEKEY": "0x4AAAAAAF4qzWMqa0FBSk-k",
     // Contacto que se manda a Nominatim en el User-Agent (lo exige su política de uso).
-    "CONTACT_EMAIL": "",
+    "CONTACT_EMAIL": "davidcasanovasola@gmail.com",
     "LIMITE_DIA_IP": "10",
     "LIMITE_DIA_DISPOSITIVO": "10",
     "LIMITE_DIA_GLOBAL": "100",
