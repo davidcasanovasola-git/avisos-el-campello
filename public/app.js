@@ -78,7 +78,6 @@ function mostrar(nombre) {
   document.querySelectorAll("section[data-pantalla]").forEach((s) => (s.hidden = s.dataset.pantalla !== nombre));
   $("#titulo").textContent = TITULOS[nombre] || "";
   $("#btn-atras").hidden = pila.length <= 1;
-  $("#insignia-prueba").hidden = !esPrueba() || nombre === "bienvenida";
   window.scrollTo(0, 0);
   AL_ENTRAR[nombre]?.();
 }
@@ -722,7 +721,6 @@ AL_ENTRAR.ajustes = () => {
 };
 $("#aj-prueba").addEventListener("change", (ev) => {
   ls.set("avisos.modoPrueba", ev.target.checked ? "1" : "0");
-  $("#insignia-prueba").hidden = !esPrueba();
 });
 $("#btn-aj-editar").addEventListener("click", () => {
   E.editandoDatos = !!E.datos;

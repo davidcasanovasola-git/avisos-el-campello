@@ -1,6 +1,6 @@
 // Service worker: la app funciona sin conexión (hacer fotos, ubicar y guardar como pendiente).
 // Sube VERSION cada vez que cambies ficheros de la app.
-const VERSION = "avisos-v3";
+const VERSION = "avisos-v4";
 const SHELL = [
   "/", "/index.html", "/styles.css", "/app.js", "/manifest.webmanifest",
   "/js/cripto.js", "/js/db.js", "/js/imagen.js", "/js/textos.js", "/js/calles.js", "/js/pdf.js",
