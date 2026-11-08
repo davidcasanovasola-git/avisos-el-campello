@@ -2,7 +2,6 @@ import * as cripto from "./js/cripto.js";
 import * as db from "./js/db.js";
 import { leerExif, comprimir, miniatura } from "./js/imagen.js";
 import { TIPOS, tipoPorId, proponerTexto, descripcionFinal } from "./js/textos.js";
-import { emparejar, buscar as buscarCalles } from "./js/calles.js";
 import { generarPDF } from "./js/pdf.js";
 
 const $ = (s) => document.querySelector(s);
@@ -44,7 +43,7 @@ function nuevaRef() {
 function nuevoParte() {
   return {
     id: crypto.randomUUID(), clave: crypto.randomUUID(), ref: nuevaRef(), creado: Date.now(), estado: "borrador",
-    fotos: [], gps: null, pin: null, movido: false, direccion: null, calle: null, calleTexto: "", numero: "", numeroEditado: false,
+    fotos: [], gps: null, pin: null, movido: false, direccion: null, calleTexto: "", calleEditada: false, numero: "", numeroEditado: false,
     tipo: null, detalle: "", texto: "", textoEditado: false, notificar: undefined,
     notas: "", numeroOficial: "", arreglado: false,
   };
@@ -317,7 +316,6 @@ const geocodificarPin = debounce(async () => {
   const dir = $("#direccion-osm");
   if (!navigator.onLine) {
     dir.textContent = "Sin conexión: escribe la calle a mano.";
-    rellenarCalles([], { sinConexion: true });
     return;
   }
   dir.textContent = "Buscando la dirección…";
@@ -328,80 +326,26 @@ const geocodificarPin = debounce(async () => {
     if (d.fueraDeTermino) {
       p.direccion = null;
       dir.textContent = "⚠️ Este punto está fuera del término de El Campello.";
-      rellenarCalles([]);
       return;
     }
     p.direccion = d;
     dir.textContent = d.direccion || "Dirección no encontrada";
+    // Lo que devuelve el mapa, salvo que el usuario lo haya cambiado a mano.
+    if (!p.calleEditada) { p.calleTexto = d.calle || ""; $("#calle").value = p.calleTexto; }
     if (!p.numeroEditado) { p.numero = d.numero || ""; $("#numero").value = p.numero; }
-    rellenarCalles(d.calle ? await emparejar(d.calle) : [], { nombreOsm: d.calle });
   } catch (e) {
-    dir.textContent = "No se pudo obtener la dirección. Elige la calle a mano.";
-    rellenarCalles([]);
+    dir.textContent = "No se pudo obtener la dirección. Escribe la calle a mano.";
   }
+  validarUbicacion();
   guardarParte();
 }, 700);
 
-function rellenarCalles(candidatas, { nombreOsm = "", sinConexion = false } = {}) {
-  const p = E.parte, sel = $("#sel-calle");
-  E.candidatas = candidatas;
-  const opciones = [];
-  const buena = candidatas[0]?.puntuacion >= 0.5 ? candidatas[0] : null;
-  if (!buena) opciones.push(new Option(nombreOsm ? `— Elige la calle (OSM: ${nombreOsm}) —` : "— Elige la calle —", ""));
-  for (const c of candidatas) opciones.push(new Option(c.value, String(c.id)));
-  if (p.calle && !candidatas.some((c) => c.id === p.calle.id)) opciones.push(new Option(p.calle.value, String(p.calle.id)));
-  opciones.push(new Option(sinConexion ? "Escribir la calle…" : "Buscar otra calle…", "buscar"));
-  sel.replaceChildren(...opciones);
-  // Conserva la elección del usuario si ya había una; si no, la mejor candidata.
-  const elegida = p.calleElegidaAMano && p.calle ? p.calle : buena;
-  if (elegida) { sel.value = String(elegida.id); p.calle = { id: elegida.id, value: elegida.value }; p.calleTexto = elegida.value; }
-  else if (!p.calleElegidaAMano) { sel.value = ""; p.calle = null; }
-  $("#buscar-calle-bloque").hidden = !sinConexion;
-  validarUbicacion();
-}
-$("#sel-calle").addEventListener("change", (ev) => {
-  const v = ev.target.value, p = E.parte;
-  $("#buscar-calle-bloque").hidden = v !== "buscar";
-  if (v === "buscar") { p.calle = null; $("#buscar-calle").focus(); }
-  else if (v) {
-    const c = [...(E.candidatas || []), p.calle].find((x) => x && String(x.id) === v);
-    if (c) { p.calle = { id: c.id, value: c.value }; p.calleTexto = c.value; p.calleElegidaAMano = true; }
-  } else p.calle = null;
-  validarUbicacion();
-  guardarParte();
-});
-$("#buscar-calle").addEventListener("input", debounce(async (ev) => {
-  const t = ev.target.value.trim(), p = E.parte, cont = $("#sugerencias-calle");
-  p.calleTexto = t; // por si no hay conexión: se usa el texto tal cual
-  validarUbicacion();
-  if (t.length < 3 || !navigator.onLine) return cont.replaceChildren();
-  try {
-    const res = (await buscarCalles(t)).slice(0, 8);
-    cont.replaceChildren(...res.map((c) => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.textContent = c.value;
-      b.onclick = () => {
-        p.calle = { id: c.id, value: c.value }; p.calleTexto = c.value; p.calleElegidaAMano = true;
-        E.candidatas = [c, ...(E.candidatas || [])];
-        const sel = $("#sel-calle");
-        if (![...sel.options].some((o) => o.value === String(c.id))) sel.add(new Option(c.value, String(c.id)), 0);
-        sel.value = String(c.id);
-        $("#buscar-calle-bloque").hidden = true;
-        cont.replaceChildren();
-        ev.target.value = "";
-        validarUbicacion();
-        guardarParte();
-      };
-      return b;
-    }));
-  } catch { cont.replaceChildren(); }
-}, 300));
+$("#calle").addEventListener("input", (ev) => { E.parte.calleTexto = ev.target.value.trim(); E.parte.calleEditada = true; validarUbicacion(); });
 $("#numero").addEventListener("input", (ev) => { E.parte.numero = ev.target.value.trim(); E.parte.numeroEditado = true; });
 function validarUbicacion() {
   const p = E.parte;
   if (!p) return;
-  $("#btn-ubicacion-ok").disabled = !(p.pin && (p.calle || p.calleTexto.length >= 3));
+  $("#btn-ubicacion-ok").disabled = !p.pin;
 }
 AL_ENTRAR.ubicacion = () => {
   crearMapa();
@@ -411,6 +355,7 @@ AL_ENTRAR.ubicacion = () => {
     if (p.pin) fijarPin(p.pin, { geocodificar: !p.direccion && E.gps.fin });
     else E.mapa.setView([CENTRO.lat, CENTRO.lon], 15);
   }, 60);
+  $("#calle").value = E.parte.calleTexto || "";
   $("#numero").value = E.parte.numero || "";
   pintarGPS();
   validarUbicacion();
@@ -421,7 +366,7 @@ $("#btn-ubicacion-ok").addEventListener("click", () => {
 });
 
 // ── tipo y texto ─────────────────────────────────────────────────────────────
-function calleLegible(p) { return p.calle?.value || p.calleTexto || p.direccion?.calle || ""; }
+function calleLegible(p) { return p.calleTexto || p.calle?.value || p.direccion?.calle || ""; }
 function regenerarTexto() {
   const p = E.parte;
   if (!p.textoEditado) {
@@ -465,7 +410,7 @@ AL_ENTRAR.resumen = () => {
     const i = document.createElement("img"); i.src = f.thumb; i.alt = "Foto"; d.append(i); return d;
   }));
   $("#res-tipo").textContent = tipoPorId(p.tipo)?.etiqueta || "";
-  $("#res-calle").textContent = `📍 ${[calleLegible(p), p.numero].filter(Boolean).join(", ")}${p.calle ? "" : " (sin calle del catálogo)"}`;
+  $("#res-calle").textContent = `📍 ${[calleLegible(p), p.numero].filter(Boolean).join(", ") || "Sin calle (van las coordenadas)"}`;
   $("#res-texto").textContent = descripcionFinal(p);
   $("#error-envio").textContent = "";
   pintarRemitente();
@@ -544,7 +489,7 @@ async function enviar() {
   fd.append("turnstile", E.turnstile.token || "");
   fd.append("datos", JSON.stringify({
     nombre: nombreCompleto(d), email: d.email, movil: d.movil || "", notificar: !!p.notificar,
-    calle_texto: p.calle?.value || p.calleTexto, calle_id: p.calle?.id ?? null, calle_num: p.numero || "",
+    calle_texto: calleLegible(p), calle_num: p.numero || "",
     descripcion: p.descripcionEnviada,
   }));
   p.fotos.forEach((f, i) => fd.append("fotos", f.blob, `foto${i + 1}.jpg`));
@@ -687,7 +632,7 @@ $("#btn-det-enviar").addEventListener("click", async () => {
   E.parte = p;
   E.gps.fin = true;
   if (!p.fotos?.length) ir("fotos");
-  else if (!p.pin || !(p.calle || p.calleTexto)) ir("ubicacion");
+  else if (!p.pin) ir("ubicacion");
   else if (!p.tipo) ir("tipo");
   else ir("resumen");
 });

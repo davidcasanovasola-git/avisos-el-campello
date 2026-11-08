@@ -9,7 +9,6 @@ export default {
     const url = new URL(request.url);
     try {
       if (url.pathname === "/api/config" && request.method === "GET") return config(env);
-      if (url.pathname === "/api/calles" && request.method === "GET") return calles(url, env, ctx);
       if (url.pathname === "/api/geocodificar" && request.method === "GET") return geocodificar(url, env, ctx);
       if (url.pathname === "/api/enviar" && request.method === "POST") return await enviar(request, env);
       if (url.pathname.startsWith("/api/")) return json({ error: "No encontrado" }, 404);
@@ -43,31 +42,6 @@ function config(env) {
     fotos: { max: FOTOS.max, maxBytes: FOTOS.maxBytes },
     descripcion: DESCRIPCION,
   });
-}
-
-// ── Calles del catálogo municipal ────────────────────────────────────────────
-async function calles(url, env, ctx) {
-  const URLS = urlsDe(env.AYTO_BASE || undefined);
-  const term = (url.searchParams.get("term") || "").trim();
-  if (term.length < 2 || term.length > 60) return json({ error: "Término de búsqueda no válido" }, 400);
-  const destino = `${URLS.buscarCalle}?term=${encodeURIComponent(term.toLowerCase())}`;
-  const cache = caches.default;
-  const clave = new Request(destino);
-  let r = await cache.match(clave);
-  if (!r) {
-    const up = await fetch(destino, { headers: { "User-Agent": USER_AGENT, Accept: "application/json" } });
-    if (!up.ok) return json({ error: "El buscador de calles del Ayuntamiento no responde" }, 502);
-    let datos;
-    try {
-      datos = JSON.parse(await up.text());
-    } catch {
-      return json([], 200);
-    }
-    const limpio = (Array.isArray(datos) ? datos : []).filter((x) => x && Number.isInteger(x.id) && typeof x.value === "string").map((x) => ({ id: x.id, value: x.value.replace(/\s+/g, " ").trim() }));
-    r = new Response(JSON.stringify(limpio), { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=86400" } });
-    ctx.waitUntil(cache.put(clave, r.clone()));
-  }
-  return r;
 }
 
 // ── Geocodificación inversa (Nominatim) ──────────────────────────────────────
@@ -121,14 +95,12 @@ function validar(datos) {
     movil: s(datos.movil, 20),
     notificar: datos.notificar === true,
     calle_texto: s(datos.calle_texto, 150),
-    calle_id: Number.isInteger(datos.calle_id) && datos.calle_id > 0 ? datos.calle_id : null,
     calle_num: s(datos.calle_num, 10),
     descripcion: typeof datos.descripcion === "string" ? datos.descripcion.trim() : "",
   };
   if (d.nombre.length < 2) e.push("Falta el nombre.");
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email)) e.push("El email no es válido.");
   if (d.movil && !/^\+?[\d\s]{9,16}$/.test(d.movil)) e.push("El teléfono no es válido.");
-  if (!d.calle_texto && !d.calle_id) e.push("Falta la calle.");
   if (d.descripcion.length < DESCRIPCION.min) e.push(`La descripción debe tener al menos ${DESCRIPCION.min} caracteres.`);
   if (d.descripcion.length > DESCRIPCION.max) e.push(`La descripción no puede pasar de ${DESCRIPCION.max} caracteres.`);
   return { d, e };

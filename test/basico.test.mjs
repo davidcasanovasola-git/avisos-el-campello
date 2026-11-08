@@ -1,26 +1,25 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { construirFormulario, esConfirmacion, erroresValidacion } from "../src/form-map.js";
-import { normalizar } from "../public/js/calles.js";
 import { proponerTexto, descripcionFinal } from "../public/js/textos.js";
 
-const datos = { nombre: "Ana Pérez", email: "ana@example.com", movil: "600000000", notificar: true, calle_texto: "C/ Jorge Juan", calle_id: 260, calle_num: "5", descripcion: "x".repeat(60) };
+const datos = { nombre: "Ana Pérez", email: "ana@example.com", movil: "600000000", notificar: true, calle_texto: "Calle Jorge Juan", calle_num: "5", descripcion: "x".repeat(60) };
 
 test("el multipart replica el formulario oficial", () => {
   const f = construirFormulario(datos, [new File([new Uint8Array([0xff, 0xd8, 0xff])], "a.jpg", { type: "image/jpeg" })]);
   const pares = [...f.entries()].map(([k, v]) => [k, typeof v === "string" ? v : `[${v.name}]`]);
   assert.deepEqual(pares, [
     ["email_importante", ""], ["anonimo", "0"], ["nombre", "Ana Pérez"], ["email", "ana@example.com"], ["movil", "600000000"],
-    ["notificar", "0"], ["notificar", "1"], ["calle", "C/ Jorge Juan"], ["calle", "260"], ["calle_num", "5"],
+    ["notificar", "0"], ["notificar", "1"], ["calle", "Calle Jorge Juan"], ["calle", ""], ["calle_num", "5"],
     ["ubicacion", ""], ["ubicacion", ""], ["descripcion", "x".repeat(60)], ["ficheros[]", "[foto1.jpg]"], ["aceptar_terminos", "on"],
   ]);
 });
 
 test("honeypot siempre vacío y sin notificar si no se pide", () => {
-  const f = construirFormulario({ ...datos, notificar: false, calle_id: null }, []);
+  const f = construirFormulario({ ...datos, notificar: false, calle_texto: "" }, []);
   assert.equal(f.get("email_importante"), "");
   assert.deepEqual(f.getAll("notificar"), ["0"]);
-  assert.deepEqual(f.getAll("calle"), ["C/ Jorge Juan", ""]);
+  assert.deepEqual(f.getAll("calle"), ["", ""]);
 });
 
 test("detección de confirmación y errores", () => {
@@ -28,13 +27,6 @@ test("detección de confirmación y errores", () => {
   assert.ok(!esConfirmacion("<h4>Confirmaci\xf3n de creaci\xf3n de parte</h4>"));
   assert.ok(erroresValidacion('<div class="form-group has-error"><span class="help-block">El campo descripcion es obligatorio.</span>'));
   assert.equal(erroresValidacion("<form></form>"), null);
-});
-
-test("normalización de calles castellano/valenciano", () => {
-  assert.deepEqual(normalizar("Carrer de Sant Joan"), ["san", "juan"]);
-  assert.deepEqual(normalizar("Calle San Juan"), ["san", "juan"]);
-  assert.deepEqual(normalizar("C/ Jorge Juan"), ["jorge", "juan"]);
-  assert.deepEqual(normalizar("Av  Carrer La Mar"), ["mar"]);
 });
 
 test("texto propuesto + bloque de ubicación supera el mínimo y lleva coordenadas de la foto", () => {

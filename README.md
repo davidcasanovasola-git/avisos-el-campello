@@ -25,7 +25,7 @@
 | 📷 **Foto al momento** | Abre la cámara trasera directamente. Hasta 3 fotos, recomprimidas a ≤ 800 KB. |
 | 📍 **Ubicación precisa** | GPS de alta precisión (espera a ±15 m o 20 s), mapa de OpenStreetMap con pin arrastrable y coordenadas EXIF de cada foto. |
 | 🏷️ **Tipos rápidos** | Bordillo amarillo, marcas viales, espejo, señales, pavimento, alumbrado, mobiliario… con un texto formal propuesto y editable. |
-| 🗺️ **Calle oficial** | Empareja la dirección de OSM con el catálogo de calles del Ayuntamiento, en castellano y en valenciano. |
+| 🗺️ **Dirección automática** | La calle y el número salen del mapa (OpenStreetMap). Se pueden corregir a mano. |
 | 🔐 **Tus datos, en tu móvil** | Un solo formulario al principio. Se guardan cifrados (AES-GCM) con una clave no exportable del propio navegador. Sin contraseñas, y el servidor no los guarda. |
 | 🗂️ **Historial** | Estado de cada aviso, notas ("ya lo han arreglado"), exportación CSV y **justificante PDF** para reclamar. |
 | 📶 **Sin cobertura** | El aviso queda pendiente y se envía cuando lo confirmas. |
@@ -65,11 +65,10 @@ public/            PWA estática (Workers Static Assets)
   js/db.js         historial en IndexedDB
   js/imagen.js     EXIF GPS, compresión (≤1600 px, ≤800 KB) y miniaturas
   js/textos.js     tipos de incidencia y redacción del texto
-  js/calles.js     empareja la calle de OSM con el catálogo municipal
   js/pdf.js        justificante PDF
   sw.js            funcionamiento sin conexión
 src/
-  worker.js        API: /api/config, /api/calles, /api/geocodificar, /api/enviar
+  worker.js        API: /api/config, /api/geocodificar, /api/enviar
   form-map.js      ★ MAPEO DEL FORMULARIO DEL AYUNTAMIENTO (único fichero a tocar si cambia)
   limiter.js       Durable Object: límites, antiduplicado y cola de Nominatim (1 petición/s)
 scripts/

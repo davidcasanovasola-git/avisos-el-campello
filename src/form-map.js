@@ -13,7 +13,6 @@ export function urlsDe(base = BASE) {
     formulario: `${base}/nuevo`,
     envio: `${base}/crear`,
     exito: `${base}/creado_con_exito`,
-    buscarCalle: `${base}/buscar_calle`,
   };
 }
 export const URLS = urlsDe();
@@ -40,9 +39,11 @@ export function construirFormulario(d, fotos) {
   f.append("movil", d.movil);
   f.append("notificar", "0");
   if (d.notificar) f.append("notificar", "1"); // patrón hidden 0 + checkbox 1
-  // Dos campos "calle": el texto visible y el hidden con el ID. En PHP gana el último (el ID).
+  // Dos campos "calle": el texto visible y el hidden con el ID del catálogo municipal. No usamos el catálogo:
+  // el texto es la calle que devuelve el mapa (OSM) y el hidden va vacío, igual que cuando alguien escribe
+  // la calle en el formulario oficial sin elegirla del desplegable. La calle va además en la descripción.
   f.append("calle", d.calle_texto);
-  f.append("calle", d.calle_id ? String(d.calle_id) : "");
+  f.append("calle", "");
   f.append("calle_num", d.calle_num);
   // "ubicacion" (parques, playas…): se deja vacía a propósito; la posición va en la descripción.
   f.append("ubicacion", "");

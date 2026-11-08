@@ -50,6 +50,8 @@ Content-Type: multipart/form-data
 
 ## 4. Catálogos de calle y ubicación (autocompletado)
 
+> **Decisión (8 de noviembre de 2026): no usamos el catálogo.** En `calle` se envía el texto de la calle que devuelve el mapa (OSM) y el hidden con el ID va vacío, como cuando alguien escribe la calle en el formulario oficial sin elegirla del desplegable. La dirección completa y las coordenadas van en la descripción.
+
 ```
 GET /incidencias-extranet/buscar_calle?term=<texto>       → [{"id":294,"value":"C/ Mar"}, ...]
 GET /incidencias-extranet/buscar_ubicacion?term=<texto>   → [{"id":614,"value":"Parque - Sur - Plaza Alcalasi"}, ...]

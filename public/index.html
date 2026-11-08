@@ -78,13 +78,7 @@
       <p class="nota">Arrastra el pin si no está justo en la incidencia.</p>
       <div class="tarjeta">
         <p class="direccion" id="direccion-osm">—</p>
-        <label>Calle (catálogo del Ayuntamiento)
-          <select id="sel-calle"></select>
-        </label>
-        <div id="buscar-calle-bloque" hidden>
-          <label>Busca la calle<input id="buscar-calle" placeholder="Escribe al menos 3 letras" autocomplete="off"></label>
-          <div class="sugerencias" id="sugerencias-calle"></div>
-        </div>
+        <label>Calle<input id="calle" maxlength="150" autocomplete="off" placeholder="Se rellena con el mapa"></label>
         <label>Número <span class="opc">(aprox.)</span><input id="numero" inputmode="numeric" maxlength="10"></label>
       </div>
       <button class="btn primario grande" id="btn-ubicacion-ok" disabled>Siguiente</button>

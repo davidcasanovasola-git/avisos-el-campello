@@ -110,8 +110,6 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--primario); 
 .mapa { height: 42vh; min-height: 240px; border-radius: var(--radio); border: 1px solid var(--borde); z-index: 0; }
 .direccion { font-size: .9rem; color: var(--suave); }
 
-.sugerencias { display: flex; flex-direction: column; gap: 4px; }
-.sugerencias button { text-align: left; font: inherit; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--borde); background: var(--fondo); color: var(--texto); cursor: pointer; }
 
 .tipos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .tipo { font: inherit; font-size: .92rem; font-weight: 600; text-align: left; display: flex; gap: 8px; align-items: center;
