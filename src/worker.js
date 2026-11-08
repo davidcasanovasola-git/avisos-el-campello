@@ -1,4 +1,4 @@
-import { urlsDe, USER_AGENT, FOTOS, DESCRIPCION, construirFormulario, describirFormulario, esConfirmacion, erroresValidacion } from "./form-map.js";
+import { urlsDe, USER_AGENT, FOTOS, DESCRIPCION, construirFormulario, esConfirmacion, erroresValidacion } from "./form-map.js";
 export { Limiter } from "./limiter.js";
 
 // Término municipal de El Campello (con margen). Fuera de aquí no geocodificamos.
@@ -154,7 +154,6 @@ const MENSAJES_LIMITE = {
   duplicado: "Este parte ya se envió (o se intentó enviar). No se reenvía para no duplicarlo.",
   limite_diario: "Has llegado al máximo de partes por hoy. Vuelve a intentarlo mañana.",
   limite_global: "La app ha llegado a su máximo diario de envíos. Inténtalo mañana o usa el formulario oficial.",
-  limite_pruebas: "Has llegado al máximo de pruebas por hoy.",
   espera: "Espera un poco antes de enviar otro parte.",
 };
 
@@ -167,7 +166,6 @@ async function enviar(request, env) {
   } catch {
     return json({ error: "Petición no válida" }, 400);
   }
-  const prueba = form.get("prueba") !== "0";
   const clave = String(form.get("clave") || "");
   const dispositivo = String(form.get("dispositivo") || "");
   if (!/^[0-9a-f-]{36}$/i.test(clave) || !/^[0-9a-f-]{36}$/i.test(dispositivo)) return json({ error: "Identificadores no válidos" }, 400);
@@ -184,17 +182,15 @@ async function enviar(request, env) {
   if (errorFotos) e.push(errorFotos);
   if (e.length) return json({ estado: "rechazado", errores: e }, 422);
 
-  if (!prueba && env.ENVIO_REAL !== "1") {
-    return json({ estado: "rechazado", errores: ["Los envíos reales están desactivados en este servidor (ENVIO_REAL=0)."] }, 403);
+  if (env.ENVIO_REAL !== "1") {
+    return json({ estado: "rechazado", errores: ["Los envíos están desactivados temporalmente (ENVIO_REAL=0)."] }, 403);
   }
-  if (!prueba) {
-    const t = await verificarTurnstile(String(form.get("turnstile") || ""), ip, env);
-    if (!t.ok) return json({ estado: "rechazado", errores: [t.motivo] }, 403);
-  }
+  const t = await verificarTurnstile(String(form.get("turnstile") || ""), ip, env);
+  if (!t.ok) return json({ estado: "rechazado", errores: [t.motivo] }, 403);
 
   const ipHash = (await sha256(`${ip}|${new Date().toISOString().slice(0, 10)}|avisos`)).slice(0, 32);
   const lim = limiter(env);
-  const reserva = await lim.reservar({ ipHash, dispositivo, clave, prueba });
+  const reserva = await lim.reservar({ ipHash, dispositivo, clave });
   if (!reserva.ok) {
     let msg = MENSAJES_LIMITE[reserva.motivo] || "Límite alcanzado.";
     if (reserva.motivo === "espera") msg = `Espera ${reserva.segundos} s antes de enviar otro parte.`;
@@ -213,17 +209,8 @@ async function enviar(request, env) {
     if (!r1.ok || !cookie) throw new Error(`HTTP ${r1.status}, cookie ${cookie ? "sí" : "no"}`);
   } catch (err) {
     // Aún no se ha enviado nada: es seguro marcarlo como error.
-    if (!prueba) await lim.finalizar(clave, { estado: "error" });
+    await lim.finalizar(clave, { estado: "error" });
     return json({ estado: "error", errores: [`No se pudo abrir el formulario del Ayuntamiento (${err.message}).`] }, 502);
-  }
-
-  if (prueba) {
-    return json({
-      estado: "prueba",
-      mensaje: "Modo prueba: se ha abierto el formulario del Ayuntamiento y se ha preparado el parte, pero NO se ha enviado.",
-      formularioAccesible: true,
-      seEnviaria: { metodo: "POST", url: URLS.envio, campos: describirFormulario(multipart) },
-    });
   }
 
   // 2) Enviar. A partir de aquí, ante cualquier duda NO se reintenta.

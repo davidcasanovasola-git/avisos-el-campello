@@ -1,6 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
 
-const LIMITE_PRUEBAS_DIA_IP = 30;
 const NOMINATIM_INTERVALO_MS = 1100; // política de Nominatim: máx. 1 petición/segundo (en total, no por usuario)
 
 /**
@@ -17,26 +16,15 @@ export class Limiter extends DurableObject {
     this.ultimaNominatim = 0;
   }
 
-  async reservar({ ipHash, dispositivo, clave, prueba }) {
+  async reservar({ ipHash, dispositivo, clave }) {
     const s = this.ctx.storage;
     const env = this.env;
     const ahora = Date.now();
     const dia = new Date(ahora).toISOString().slice(0, 10);
 
-    if (!prueba) {
-      const previo = await s.get(`idem:${clave}`);
-      // Si el intento anterior falló ANTES de llegar al Ayuntamiento (o fue rechazado por validación), se puede reintentar.
-      if (previo && previo.estado !== "error") return { ok: false, motivo: "duplicado", previo };
-    }
-
-    if (prueba) {
-      const k = `d:${dia}:prueba:${ipHash}`;
-      const n = (await s.get(k)) ?? 0;
-      if (n >= LIMITE_PRUEBAS_DIA_IP) return { ok: false, motivo: "limite_pruebas" };
-      await s.put(k, n + 1);
-      await this.programarLimpieza();
-      return { ok: true };
-    }
+    const previo = await s.get(`idem:${clave}`);
+    // Si el intento anterior falló ANTES de llegar al Ayuntamiento (o fue rechazado por validación), se puede reintentar.
+    if (previo && previo.estado !== "error") return { ok: false, motivo: "duplicado", previo };
 
     const limIp = Number(env.LIMITE_DIA_IP ?? 10);
     const limDev = Number(env.LIMITE_DIA_DISPOSITIVO ?? 10);

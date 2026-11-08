@@ -6,9 +6,10 @@
   "description": "PWA para enviar avisos de incidencias en la vía pública al Ayuntamiento de El Campello",
   "scripts": {
     "vendor": "node scripts/vendor.mjs",
-    "dev": "npm run vendor && wrangler dev",
+    "dev": "npm run vendor && wrangler dev --var ENVIO_REAL:0 --var TURNSTILE_SITEKEY:1x00000000000000000000AA",
     "deploy": "npm run vendor && wrangler deploy",
-    "test": "node --test \"test/**/*.test.mjs\""
+    "test": "node --test \"test/**/*.test.mjs\"",
+    "dev:simulador": "npm run vendor && wrangler dev --port 8788 --var ENVIO_REAL:1 --var AYTO_BASE:http://127.0.0.1:9999/incidencias-extranet --var TURNSTILE_SITEKEY:1x00000000000000000000AA"
   },
   "devDependencies": {
     "wrangler": "^4.158.0"

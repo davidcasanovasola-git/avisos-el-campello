@@ -54,15 +54,6 @@ export function construirFormulario(d, fotos) {
   return f;
 }
 
-/** Vista legible de lo que se enviaría (para el modo prueba). */
-export function describirFormulario(form) {
-  const out = [];
-  for (const [k, v] of form.entries()) {
-    out.push(typeof v === "string" ? { campo: k, valor: v } : { campo: k, fichero: v.name, bytes: v.size, tipo: v.type });
-  }
-  return out;
-}
-
 /** ¿La página de confirmación indica éxito? (textos ASCII para no depender de la codificación). */
 export function esConfirmacion(html) {
   return html.includes("alert-success") && html.includes("Incidencia creada correctamente");

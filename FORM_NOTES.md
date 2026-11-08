@@ -115,7 +115,7 @@ Móvil (PWA en Cloudflare Pages/Workers Assets)
   - El Worker solo habla con `intranet.elcampello.es` (las URLs están fijas en el código) y solo acepta el formato de nuestro parte: descripción de 50 a 2000 caracteres, ≤ 3 imágenes JPEG que se vuelven a comprobar en el servidor, y el honeypot siempre vacío.
 - **Antiduplicado:** nunca se reintenta solo. Cada parte lleva una `idempotency key`, y el Worker recuerda durante 24 h las claves ya enviadas (solo un hash, sin datos personales). Si el envío queda en duda (timeout), se marca **"¿enviado?"** y el usuario decide.
 - **Transparencia:** antes de enviar se muestran las condiciones legales del Ayuntamiento (se envía `aceptar_terminos=on` en nombre del usuario) y un aviso claro: "Esta app no es oficial; envía tu aviso al formulario público del Ayuntamiento con tus datos".
-- **Modo prueba:** hace los pasos 1 y 3 (y las búsquedas de calle), monta el multipart exacto y lo enseña, **pero no hace el POST /crear**.
+- **Sin modo prueba en la app** (quitado el 8 de noviembre de 2026). Las pruebas se hacen contra `scripts/simulador-ayto.mjs`, y `ENVIO_REAL=0` actúa como interruptor general.
 - **Sin cobertura:** el parte se queda "pendiente" en IndexedDB y, al volver la conexión, la app pregunta si se envía.
 - **Nominatim:** desde el Worker, con un User-Agent propio que identifique la app y un contacto, caché agresiva (por coordenadas redondeadas) y una cola **global** de 1 petición por segundo (Durable Object). Si se usa mucho, habrá que pasar a otro proveedor: la política de Nominatim no permite un uso intensivo. Mientras tanto, el emparejamiento con el catálogo municipal de calles va primero.
 - **Precio:** el plan gratuito de Workers, KV, Durable Objects y Turnstile alcanza para un uso moderado.
@@ -123,7 +123,7 @@ Móvil (PWA en Cloudflare Pages/Workers Assets)
 ## 8. Riesgos y cosas a vigilar
 
 - La aplicación del Ayuntamiento es antigua (PHP 5.6). Puede cambiar o caerse sin aviso. El mapeo de campos irá en un solo fichero (`form-map.ts`) para tocarlo fácil.
-- Puede que su servidor bloquee o trate distinto las IPs de Cloudflare. Lo veremos en el modo prueba (el paso 1 ya hace un GET real).
+- Puede que su servidor bloquee o trate distinto las IPs de Cloudflare. Comprobado el 8 de noviembre de 2026: las peticiones desde Cloudflare reciben respuesta normal.
 - El honeypot obliga a no "rellenarlo todo" a ciegas.
 - **Al ser pública**, todos los partes llegarán desde IPs de Cloudflare. Si el Ayuntamiento ve un patrón raro, puede bloquearlas. Conviene avisarles por cortesía de que la app existe y mantener los límites bajos.
 - Responsabilidad: los avisos falsos o malintencionados saldrían con los datos que ponga cada usuario, pero a través de nuestra infraestructura. Turnstile y los límites lo mitigan; no lo eliminan.

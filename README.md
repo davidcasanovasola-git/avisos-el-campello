@@ -30,7 +30,6 @@
 | 🗂️ **Historial** | Estado de cada aviso, notas ("ya lo han arreglado"), exportación CSV y **justificante PDF** para reclamar. |
 | 📶 **Sin cobertura** | El aviso queda pendiente y se envía cuando lo confirmas. |
 | 🛡️ **Sin duplicados ni abusos** | Turnstile, límites por día y por dispositivo, idempotencia y **ningún reintento automático**. |
-| 🧪 **Modo prueba** | Lo hace todo menos el envío final y enseña campo por campo lo que se enviaría. |
 
 ## Cómo funciona
 
@@ -80,7 +79,7 @@ scripts/
 
 Ante cualquier duda (timeout, respuesta rara) el aviso se marca **"Sin confirmar"** y **nunca se reintenta solo**. Cada aviso lleva una clave de idempotencia: si se reenvía durante 48 h, el servidor responde que ya se envió.
 
-**Modo prueba:** hace todo, incluido el `GET` real al formulario del Ayuntamiento, y enseña campo por campo lo que se enviaría, **pero no hace el POST**. Es el modo por defecto, y el servidor arranca con `ENVIO_REAL=0`: así solo es posible el modo prueba.
+**Interruptor general:** con `ENVIO_REAL=0` el servidor no envía nada al Ayuntamiento. La app muestra "Envíos desactivados" y los avisos se pueden guardar como pendientes. Sirve para cortar los envíos de golpe si el Ayuntamiento cambia el formulario. Para probar sin enviar avisos reales está el simulador local (abajo).
 
 ## Desarrollo local
 
@@ -98,7 +97,7 @@ cp .dev.vars.example .dev.vars
 npm run dev
 ```
 
-Abre http://localhost:8787. En localhost el navegador permite la cámara y el GPS sin HTTPS.
+Abre http://localhost:8787. `npm run dev` arranca **siempre con los envíos desactivados** y la clave de prueba de Turnstile, aunque `wrangler.jsonc` tenga los de producción. En localhost el navegador permite la cámara y el GPS sin HTTPS.
 
 > **Windows:** si `wrangler dev` falla con `SQLITE_CANTOPEN`, la ruta del proyecto es demasiado larga para el SQLite del Durable Object. Usa `npx wrangler dev --persist-to C:/tmp/avisos-state`.
 
@@ -109,7 +108,7 @@ node scripts/simulador-ayto.mjs
 ```
 
 ```bash
-npx wrangler dev --port 8788 --var ENVIO_REAL:1 --var AYTO_BASE:http://127.0.0.1:9999/incidencias-extranet
+npm run dev:simulador
 ```
 
 `SIM_MODO=error` simula un rechazo por validación y `SIM_MODO=lento` simula un Ayuntamiento que no responde (el aviso debe acabar en "Sin confirmar").
@@ -138,7 +137,7 @@ Hace falta una cuenta de Cloudflare (el plan gratuito basta).
    npm run deploy
    ```
    Queda en `https://avisos-el-campello.<tu-subdominio>.workers.dev`, con HTTPS automático (obligatorio para la cámara y el GPS). Opcionalmente, añade un dominio propio en *Workers → Settings → Domains & Routes*.
-5. **Primer envío real:** con `ENVIO_REAL` en `"0"`, haz un aviso de prueba desde el móvil y revisa lo que se enviaría. Cuando estés conforme, cambia `ENVIO_REAL` a `"1"`, vuelve a desplegar, desactiva el modo prueba en *Ajustes* y haz tú el primer envío real revisándolo.
+5. **Activar los envíos:** cambia `ENVIO_REAL` a `"1"` y vuelve a desplegar. Antes, prueba el flujo completo contra el simulador local.
 
 Para actualizar: `npm run deploy`. Si cambias ficheros de `public/`, sube `VERSION` en `public/sw.js` para que los móviles cojan la versión nueva.
 
@@ -150,7 +149,6 @@ Para actualizar: `npm run deploy`. Si cambias ficheros de `public/`, sube `VERSI
 | `SEGUNDOS_ENTRE_ENVIOS` | 120 | espera mínima entre dos avisos |
 | `LIMITE_DIA_GLOBAL` | 100 | total de la app por día |
 
-Las simulaciones tienen su propio límite: 30 al día por IP.
 
 ## Si cambia el formulario del Ayuntamiento
 
@@ -160,7 +158,7 @@ Las simulaciones tienen su propio límite: 30 al día por IP.
    - `construirFormulario()`: nombres y orden de los campos. **Mantén el honeypot `email_importante` vacío.**
    - `esConfirmacion()` y `erroresValidacion()`: cómo se reconoce el éxito o el error.
 3. Si aparece un CAPTCHA o un token CSRF: el token se puede leer en el `GET /nuevo` y reenviar. **Un CAPTCHA no se debe saltar.** En ese caso hay que pasar a "abrir el formulario oficial con los datos listos para copiar".
-4. `npm test`, prueba en modo prueba, y haz un envío real revisado.
+4. `npm test`, prueba contra el simulador local (actualízalo si cambió la respuesta), y haz un envío real revisado.
 
 ## Privacidad y seguridad
 

@@ -31,7 +31,6 @@ function dispositivo() {
   if (!id) { id = crypto.randomUUID(); ls.set("avisos.dispositivo", id); }
   return id;
 }
-const esPrueba = () => !E.config?.envioReal || ls.get("avisos.modoPrueba", "1") === "1";
 const fecha = (t) => new Date(t).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" });
 const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 function nuevaRef() {
@@ -151,8 +150,8 @@ $("#form-datos").addEventListener("submit", async (ev) => {
 // ── inicio ───────────────────────────────────────────────────────────────────
 AL_ENTRAR.inicio = () => {
   comprobarPendientes();
-  $("#nota-modo").textContent = esPrueba()
-    ? "Modo prueba activo: los avisos se preparan pero no se envían al Ayuntamiento."
+  $("#nota-modo").textContent = E.config?.envioReal === false
+    ? "Los envíos están desactivados temporalmente. Puedes hacer avisos y se guardarán como pendientes."
     : "";
 };
 $("#btn-nueva").addEventListener("click", () => {
@@ -428,10 +427,10 @@ $("#res-notificar").addEventListener("change", (ev) => { E.parte.notificar = ev.
 
 function actualizarBotonEnviar() {
   const b = $("#btn-enviar");
-  const prueba = esPrueba();
-  const necesitaTs = !prueba && !!E.config?.turnstileSitekey;
+  const necesitaTs = !!E.config?.turnstileSitekey;
   if (!navigator.onLine) { b.textContent = "Sin conexión"; b.disabled = true; return; }
-  b.textContent = prueba ? "Simular envío (prueba)" : "Enviar";
+  if (E.config?.envioReal === false) { b.textContent = "Envíos desactivados"; b.disabled = true; return; }
+  b.textContent = "Enviar";
   b.disabled = !E.datos || (necesitaTs && !E.turnstile.token) || E.enviando;
 }
 
@@ -446,7 +445,7 @@ function cargarTurnstile() {
 }
 async function prepararTurnstile() {
   const cont = $("#turnstile");
-  if (esPrueba() || !E.config?.turnstileSitekey || !navigator.onLine) { cont.hidden = true; return; }
+  if (!E.config?.envioReal || !E.config?.turnstileSitekey || !navigator.onLine) { cont.hidden = true; return; }
   cont.hidden = false;
   try {
     await cargarTurnstile();
@@ -473,17 +472,16 @@ $("#btn-enviar").addEventListener("click", enviar);
 async function enviar() {
   const p = E.parte, d = E.datos;
   if (!d || E.enviando) return;
-  const prueba = esPrueba();
   E.enviando = true;
   actualizarBotonEnviar();
-  $("#btn-enviar").textContent = prueba ? "Simulando…" : "Enviando…";
+  $("#btn-enviar").textContent = "Enviando…";
   $("#error-envio").textContent = "";
   p.descripcionEnviada = descripcionFinal(p);
   const anterior = p.estado;
-  if (!prueba) { p.estado = "enviando"; await guardarParte(); }
+  p.estado = "enviando";
+  await guardarParte();
 
   const fd = new FormData();
-  fd.append("prueba", prueba ? "1" : "0");
   fd.append("clave", p.clave);
   fd.append("dispositivo", dispositivo());
   fd.append("turnstile", E.turnstile.token || "");
@@ -505,11 +503,8 @@ async function enviar() {
   if (E.turnstile.id != null) { try { window.turnstile.reset(E.turnstile.id); } catch {} E.turnstile.token = null; }
 
   if (!j) {
-    if (prueba) { $("#error-envio").textContent = "No se pudo contactar con el servidor."; actualizarBotonEnviar(); return; }
     p.estado = "duda";
     p.errores = ["Se perdió la conexión con nuestro servidor durante el envío. Puede que el aviso se haya enviado."];
-  } else if (j.estado === "prueba") {
-    p.estado = "prueba"; p.camposPrueba = j.seEnviaria; p.errores = null;
   } else if (j.estado === "enviado") {
     Object.assign(p, { estado: "enviado", enviado: Date.now(), fechaServidor: j.fechaServidor, confirmacion: j.mensaje, confirmado: j.confirmado, justificanteHtml: j.justificanteHtml, errores: null });
   } else if (j.estado === "duda") {
@@ -522,7 +517,7 @@ async function enviar() {
       p.errores = j.errores;
     } else {
       // No ha salido nada hacia el Ayuntamiento: se puede volver a intentar.
-      p.estado = prueba ? anterior : ["prueba", "borrador"].includes(anterior) ? "pendiente" : anterior;
+      p.estado = ["prueba", "borrador", "enviando"].includes(anterior) ? "pendiente" : anterior;
       $("#error-envio").textContent = (j.errores || ["No se pudo enviar."]).join(" ");
       await guardarParte();
       actualizarBotonEnviar();
@@ -537,7 +532,6 @@ async function enviar() {
 // ── resultado ────────────────────────────────────────────────────────────────
 const RESULTADOS = {
   enviado: ["✅", "Aviso enviado", "El Ayuntamiento ha registrado tu aviso. No dan número de parte: guarda el justificante."],
-  prueba: ["🧪", "Prueba completada", "Todo listo y el formulario del Ayuntamiento responde, pero NO se ha enviado nada (modo prueba)."],
   duda: ["⚠️", "Envío sin confirmar", "No sabemos seguro si se ha creado. No lo reenvíes hasta comprobarlo: si te llega un email del Ayuntamiento, se envió."],
   error: ["❌", "No se ha enviado", "El Ayuntamiento ha rechazado el aviso. Revisa los errores y vuelve a intentarlo desde Mis avisos."],
 };
@@ -548,12 +542,6 @@ AL_ENTRAR.resultado = () => {
   $("#resultado-titulo").textContent = tit;
   $("#resultado-texto").textContent = p.estado === "enviado" && p.confirmacion ? `${p.confirmacion} ${txt}` : txt;
   $("#resultado-errores").replaceChildren(...(p.errores || []).map((e) => Object.assign(document.createElement("li"), { textContent: e })));
-  const det = $("#resultado-detalle");
-  det.hidden = p.estado !== "prueba" || !p.camposPrueba;
-  if (!det.hidden) {
-    $("#resultado-campos").textContent = `${p.camposPrueba.metodo} ${p.camposPrueba.url}\n\n` +
-      p.camposPrueba.campos.map((c) => c.fichero ? `${c.campo} = [${c.fichero}, ${Math.round(c.bytes / 1024)} KB]` : `${c.campo} = ${JSON.stringify(c.valor)}`).join("\n");
-  }
 };
 $("#btn-res-pdf").addEventListener("click", () => generarPDF(E.parte, E.datos));
 $("#btn-res-inicio").addEventListener("click", () => ir("inicio", { raiz: true }));
@@ -656,17 +644,6 @@ $("#btn-det-borrar").addEventListener("click", async () => {
 });
 
 // ── ajustes ──────────────────────────────────────────────────────────────────
-AL_ENTRAR.ajustes = () => {
-  const c = $("#aj-prueba");
-  c.checked = esPrueba();
-  c.disabled = !E.config?.envioReal;
-  $("#aj-prueba-nota").textContent = E.config?.envioReal
-    ? "Desactívalo para enviar avisos reales al Ayuntamiento."
-    : "El servidor tiene desactivados los envíos reales: solo funciona el modo prueba.";
-};
-$("#aj-prueba").addEventListener("change", (ev) => {
-  ls.set("avisos.modoPrueba", ev.target.checked ? "1" : "0");
-});
 $("#btn-aj-editar").addEventListener("click", () => {
   E.editandoDatos = !!E.datos;
   ir("bienvenida");
