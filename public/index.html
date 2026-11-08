@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Avisos El Campello</title>
+  <meta name="description" content="Envía avisos de incidencias en la vía pública al Ayuntamiento de El Campello en pocos toques. App no oficial.">
+  <meta name="theme-color" content="#0b6b7e">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Avisos">
+  <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/vendor/leaflet/leaflet.js" defer></script>
+  <script src="/vendor/exifr.lite.umd.js" defer></script>
+  <script src="/vendor/jspdf.umd.min.js" defer></script>
+  <script src="/app.js" type="module"></script>
+</head>
+<body>
+  <header class="barra">
+    <button class="atras" id="btn-atras" aria-label="Atrás" hidden>‹</button>
+    <h1 id="titulo">Avisos El Campello</h1>
+    <span class="insignia" id="insignia-prueba" hidden>PRUEBA</span>
+  </header>
+
+  <div class="aviso-red" id="aviso-offline" hidden>Sin conexión: puedes hacer el parte y se guardará como pendiente.</div>
+
+  <main>
+    <!-- BIENVENIDA / DATOS -->
+    <section data-pantalla="bienvenida" hidden>
+      <p class="intro">Envía avisos de incidencias en la calle al <strong>Ayuntamiento de El Campello</strong> en pocos toques.</p>
+      <p class="nota">App ciudadana <strong>no oficial</strong>. Tus avisos se envían al formulario público del Ayuntamiento con los datos que pongas aquí. Esos datos se guardan <strong>cifrados en este móvil</strong> y nuestro servidor no se los queda.</p>
+      <form id="form-datos" class="tarjeta" autocomplete="on">
+        <h2>Tus datos (solo una vez)</h2>
+        <label>Nombre y apellidos<input name="nombre" required autocomplete="name" maxlength="120"></label>
+        <label>Email<input name="email" type="email" required autocomplete="email" maxlength="120"></label>
+        <label>Teléfono <span class="opc">(opcional)</span><input name="movil" type="tel" autocomplete="tel" inputmode="tel" maxlength="16"></label>
+        <label class="casilla"><input type="checkbox" name="notificar" checked> Quiero que el Ayuntamiento me avise por email cuando acepte el parte</label>
+        <label class="casilla"><input type="checkbox" name="acepto" required> Entiendo que esta app no es del Ayuntamiento y acepto sus <a href="https://intranet.elcampello.es/incidencias-extranet/nuevo" target="_blank" rel="noopener">condiciones legales</a> al enviar cada aviso.</label>
+        <p class="error" id="error-datos" role="alert"></p>
+        <button class="btn primario grande" type="submit">Guardar</button>
+      </form>
+    </section>
+
+    <!-- INICIO -->
+    <section data-pantalla="inicio" hidden>
+      <button class="btn primario enorme" id="btn-nueva">📷<span>Nueva incidencia</span></button>
+      <div class="tarjeta aviso" id="aviso-pendientes" hidden>
+        <p id="texto-pendientes"></p>
+        <button class="btn" id="btn-ver-pendientes">Revisar y enviar</button>
+      </div>
+      <div class="fila-botones">
+        <button class="btn grande" data-ir="historial">🗂️ Mis avisos</button>
+        <button class="btn grande" data-ir="ajustes">⚙️ Ajustes</button>
+      </div>
+      <p class="nota centro" id="nota-modo"></p>
+    </section>
+
+    <!-- FOTOS -->
+    <section data-pantalla="fotos" hidden>
+      <input type="file" id="input-foto" accept="image/*" capture="environment" hidden>
+      <input type="file" id="input-galeria" accept="image/jpeg,image/png,image/heic,image/heif" multiple hidden>
+      <div class="miniaturas" id="miniaturas"></div>
+      <p class="nota" id="nota-fotos">Haz una foto de la incidencia. Puedes añadir hasta 3.</p>
+      <div class="fila-botones">
+        <button class="btn grande" id="btn-foto">📷 Hacer foto</button>
+        <button class="btn grande" id="btn-galeria">🖼️ De la galería</button>
+      </div>
+      <div class="gps-mini" id="gps-mini"></div>
+      <button class="btn primario grande" id="btn-fotos-ok" disabled>Siguiente</button>
+    </section>
+
+    <!-- UBICACIÓN -->
+    <section data-pantalla="ubicacion" hidden>
+      <div class="gps" id="gps-estado"><span class="punto"></span><span id="gps-texto">Buscando tu posición…</span></div>
+      <div id="mapa" class="mapa"></div>
+      <p class="nota">Arrastra el pin si no está justo en la incidencia.</p>
+      <div class="tarjeta">
+        <p class="direccion" id="direccion-osm">—</p>
+        <label>Calle (catálogo del Ayuntamiento)
+          <select id="sel-calle"></select>
+        </label>
+        <div id="buscar-calle-bloque" hidden>
+          <label>Busca la calle<input id="buscar-calle" placeholder="Escribe al menos 3 letras" autocomplete="off"></label>
+          <div class="sugerencias" id="sugerencias-calle"></div>
+        </div>
+        <label>Número <span class="opc">(aprox.)</span><input id="numero" inputmode="numeric" maxlength="10"></label>
+      </div>
+      <button class="btn primario grande" id="btn-ubicacion-ok" disabled>Siguiente</button>
+    </section>
+
+    <!-- TIPO -->
+    <section data-pantalla="tipo" hidden>
+      <div class="tipos" id="tipos"></div>
+      <label>Detalle <span class="opc">(opcional)</span><textarea id="detalle" rows="2" maxlength="500" placeholder="Ej.: frente al portal, desde hace semanas…"></textarea></label>
+      <label>Texto que se enviará <span class="opc">(puedes editarlo)</span><textarea id="texto" rows="6" maxlength="1500"></textarea></label>
+      <p class="nota" id="contador"></p>
+      <button class="btn" id="btn-reproponer" hidden>Volver al texto propuesto</button>
+      <button class="btn primario grande" id="btn-tipo-ok" disabled>Siguiente</button>
+    </section>
+
+    <!-- RESUMEN -->
+    <section data-pantalla="resumen" hidden>
+      <div class="miniaturas pequenas" id="res-fotos"></div>
+      <div class="tarjeta">
+        <p><strong id="res-tipo"></strong></p>
+        <p id="res-calle"></p>
+        <pre class="texto-final" id="res-texto"></pre>
+      </div>
+      <div class="tarjeta" id="res-remitente">
+        <h2>Remitente</h2>
+        <p id="res-datos"></p>
+        <label class="casilla"><input type="checkbox" id="res-notificar"> Avisarme por email</label>
+      </div>
+      <p class="nota">Al enviar aceptas las <a href="https://intranet.elcampello.es/incidencias-extranet/nuevo" target="_blank" rel="noopener">condiciones legales del Ayuntamiento</a>. Nada se envía hasta que pulses el botón.</p>
+      <div id="turnstile"></div>
+      <p class="error" id="error-envio" role="alert"></p>
+      <button class="btn primario enorme" id="btn-enviar" disabled>Enviar</button>
+      <button class="btn" id="btn-guardar-pendiente">Guardar y enviar más tarde</button>
+    </section>
+
+    <!-- RESULTADO -->
+    <section data-pantalla="resultado" hidden>
+      <div class="resultado" id="resultado-caja">
+        <div class="icono-resultado" id="resultado-icono"></div>
+        <h2 id="resultado-titulo"></h2>
+        <p id="resultado-texto"></p>
+        <ul class="errores" id="resultado-errores"></ul>
+      </div>
+      <details id="resultado-detalle" hidden><summary>Qué se habría enviado</summary><pre id="resultado-campos"></pre></details>
+      <button class="btn grande" id="btn-res-pdf">📄 Justificante PDF</button>
+      <button class="btn primario grande" id="btn-res-inicio">Volver al inicio</button>
+    </section>
+
+    <!-- HISTORIAL -->
+    <section data-pantalla="historial" hidden>
+      <div class="fila-botones">
+        <button class="btn" id="btn-csv">⬇️ Exportar CSV</button>
+      </div>
+      <ul class="lista" id="lista"></ul>
+      <p class="nota centro" id="lista-vacia" hidden>Todavía no has hecho ningún aviso.</p>
+    </section>
+
+    <!-- DETALLE -->
+    <section data-pantalla="detalle" hidden>
+      <div class="miniaturas" id="det-fotos"></div>
+      <div class="tarjeta">
+        <p><span class="estado" id="det-estado"></span> <span id="det-ref" class="ref"></span></p>
+        <p><strong id="det-tipo"></strong></p>
+        <p id="det-calle"></p>
+        <p class="nota" id="det-fechas"></p>
+        <pre class="texto-final" id="det-texto"></pre>
+      </div>
+      <div class="tarjeta">
+        <label>Nº de parte oficial <span class="opc">(si te llega por email)</span><input id="det-numero"></label>
+        <label class="casilla"><input type="checkbox" id="det-arreglado"> Ya está arreglado</label>
+        <label>Notas<textarea id="det-notas" rows="3"></textarea></label>
+        <button class="btn" id="btn-det-guardar">Guardar notas</button>
+      </div>
+      <button class="btn primario grande" id="btn-det-enviar" hidden>Revisar y enviar</button>
+      <button class="btn grande" id="btn-det-pdf">📄 Justificante PDF</button>
+      <button class="btn" id="btn-det-html" hidden>Ver respuesta del Ayuntamiento</button>
+      <button class="btn peligro" id="btn-det-borrar">Borrar este aviso</button>
+    </section>
+
+    <!-- AJUSTES -->
+    <section data-pantalla="ajustes" hidden>
+      <div class="tarjeta">
+        <h2>Modo de envío</h2>
+        <label class="casilla"><input type="checkbox" id="aj-prueba"> Modo prueba (prepara todo, pero no envía nada al Ayuntamiento)</label>
+        <p class="nota" id="aj-prueba-nota"></p>
+      </div>
+      <div class="tarjeta">
+        <h2>Mis datos</h2>
+        <p class="nota">Están cifrados en este móvil y solo salen de él al enviar un aviso.</p>
+        <button class="btn" id="btn-aj-editar">Cambiar mis datos</button>
+      </div>
+      <div class="tarjeta">
+        <h2>Borrar</h2>
+        <button class="btn peligro" id="btn-aj-borrar">Borrar mis datos y todo el historial</button>
+      </div>
+      <p class="nota centro">Avisos El Campello · app ciudadana no oficial</p>
+    </section>
+  </main>
+
+  <dialog id="dialogo">
+    <form method="dialog">
+      <p id="dialogo-texto"></p>
+      <div class="fila-botones">
+        <button value="no" class="btn">Cancelar</button>
+        <button value="si" class="btn primario" id="dialogo-si">Aceptar</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>

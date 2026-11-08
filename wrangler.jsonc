@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "avisos-el-campello",
+  "main": "src/worker.js",
+  "compatibility_date": "2025-09-01",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "LIMITER", "class_name": "Limiter" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Limiter"] }],
+  "observability": { "enabled": true },
+  "vars": {
+    // "1" permite envíos reales al Ayuntamiento. Con "0" solo funciona el modo prueba.
+    "ENVIO_REAL": "0",
+    // Clave pública de Turnstile. La de abajo es la clave de PRUEBA oficial de Cloudflare (siempre pasa).
+    "TURNSTILE_SITEKEY": "1x00000000000000000000AA",
+    // Contacto que se manda a Nominatim en el User-Agent (lo exige su política de uso).
+    "CONTACT_EMAIL": "",
+    "LIMITE_DIA_IP": "10",
+    "LIMITE_DIA_DISPOSITIVO": "10",
+    "LIMITE_DIA_GLOBAL": "100",
+    "SEGUNDOS_ENTRE_ENVIOS": "120"
+  }
+  // Secretos (no van aquí): `npx wrangler secret put TURNSTILE_SECRET`
+}
