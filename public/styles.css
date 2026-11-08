@@ -66,14 +66,15 @@ h2 { font-size: 1.05rem; margin: 0 0 4px; }
 .error { color: var(--error); margin: 0; min-height: 0; font-weight: 600; }
 .error:empty { display: none; }
 
-label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: .95rem; }
+label { display: block; font-weight: 600; font-size: .95rem; }
+label > input:not([type=checkbox]), label > select, label > textarea { display: block; margin-top: 4px; }
 input:not([type=checkbox]), select, textarea {
   font: inherit; font-weight: 400; color: var(--texto); background: var(--fondo);
   border: 1px solid var(--borde); border-radius: 10px; padding: 12px; width: 100%; min-height: 48px;
 }
 textarea { resize: vertical; }
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--primario); outline-offset: 1px; }
-.casilla { flex-direction: row; align-items: flex-start; gap: 10px; font-weight: 400; }
+.casilla { display: flex; flex-direction: row; align-items: flex-start; gap: 10px; font-weight: 400; }
 .casilla input { width: 22px; height: 22px; margin: 2px 0 0; flex: none; accent-color: var(--primario); }
 
 .btn {
